@@ -1,0 +1,46 @@
+[
+  {
+    "userid": "61555832249594",
+    "prefix": "+",
+    "admin": [
+      "100092359574131"
+    ],
+    "blacklist": [],
+    "enableCommands": [
+      {
+        "commands": [
+          "adc",
+          "adduser",
+          "admin",
+          "ai",
+          "bes",
+          "catgpt",
+          "chesca",
+          "claire",
+          "cyberdetective",
+          "dogbot",
+          "gemini",
+          "gpt",
+          "help",
+          "llama",
+          "music",
+          "ping",
+          "poli",
+          "shoti",
+          "spaceexplorer",
+          "sumi",
+          "tid",
+          "uid",
+          "uncleroger",
+          "unsent"
+        ]
+      },
+      {
+        "handleEvent": [
+          "antiout",
+          "resend"
+        ]
+      }
+    ]
+  }
+]
