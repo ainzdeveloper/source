@@ -1,12 +1,12 @@
 const fs = require('fs');
-const axios = require('axios');
 const path = require('path');
 const login = require('./private/@xaviabot/fca-unofficial');
 const express = require('express');
 const app = express();
+const chalk = require('chalk');
 const bodyParser = require('body-parser');
 const script = path.join(__dirname, 'script');
-const config = fs.existsSync('data.json') ? JSON.parse(fs.readFileSync('data/data.json', 'utf8')) : createConfig();
+const config = fs.existsSync('./data') && fs.existsSync('./data/config.json') ? JSON.parse(fs.readFileSync('./data/config.json', 'utf8')) : createConfig();
 const Utils = new Object({
   commands: new Map(),
   handleEvent: new Map(),
@@ -28,8 +28,7 @@ fs.readdirSync(script).forEach((file) => {
           const {
             name = [], role = '0', version = '1.0.0', hasPrefix = true, aliases = [], description = '', usage = '', credits = '', cooldown = '5'
           } = Object.fromEntries(Object.entries(config).map(([key, value]) => [key.toLowerCase(), value]));
-          aliases.push(name)
-          console.log(name, role, version, aliases, config.hasPrefix);
+          aliases.push(name);
           if (run) {
             Utils.commands.set(aliases, {
               name,
@@ -229,11 +228,12 @@ async function accountLogin(state, enableCommands = [], prefix, admin = []) {
           profileUrl,
           thumbSrc
         } = userInfo[userid];
+        let time = (JSON.parse(fs.readFileSync('./data/history.json', 'utf-8')).find(user => user.userid === userid) || {}).time || 0;
         Utils.account.set(userid, {
           name,
           profileUrl,
           thumbSrc,
-          time: 0
+          time: time
         });
         const intervalId = setInterval(() => {
           try {
@@ -264,33 +264,8 @@ async function accountLogin(state, enableCommands = [], prefix, admin = []) {
       });
       try {
         var listenEmitter = api.listenMqtt(async (error, event) => {
-          if (error) {
-            if (error === 'Connection closed.') {
-              console.error(`Error during API listen: ${error}`, userid);
-            }
-            console.log(error)
-          }
-          let database = fs.existsSync('./data/database.json') ? JSON.parse(fs.readFileSync('./data/database.json', 'utf8')) : createDatabase();
-          let data = Array.isArray(database) ? database.find(item => Object.keys(item)[0] === event?.threadID) : {};
-          let adminIDS = data ? database : createThread(event.threadID, api);
-          let blacklist = (JSON.parse(fs.readFileSync('./history.json', 'utf-8')).find(blacklist => blacklist.userid === userid) || {}).blacklist || [];
-          let hasPrefix = (event.body && aliases((event.body || '')?.trim().toLowerCase().split(/ +/).shift())?.hasPrefix == false) ? '' : prefix;
-          let [command, ...args] = ((event.body || '').trim().toLowerCase().startsWith(hasPrefix?.toLowerCase()) ? (event.body || '').trim().substring(hasPrefix?.length).trim().split(/\s+/).map(arg => arg.trim()) : []);
-          if (hasPrefix && aliases(command)?.hasPrefix === false) {
-            api.sendMessage(`Invalid usage this command doesn't need a prefix`, event.threadID, event.messageID);
-            return;
-          }
-          if (event.body && aliases(command)?.name) {
-            const role = aliases(command)?.role ?? 0;
-            const isAdmin = config?.[0]?.masterKey?.admin?.includes(event.senderID) || admin.includes(event.senderID);
-            const isThreadAdmin = isAdmin || ((Array.isArray(adminIDS) ? adminIDS.find(admin => Object.keys(admin)[0] === event.threadID) : {})?.[event.threadID] || []).some(admin => admin.id === event.senderID);
-            if ((role == 1 && !isAdmin) || (role == 2 && !isThreadAdmin) || (role == 3 && !config?.[0]?.masterKey?.admin?.includes(event.senderID))) {
-              api.sendMessage(`You don't have permission to use this command.`, event.threadID, event.messageID);
-              return;
-            }
-          }
-
-          if (event.body !== null) {
+        
+if (event.body !== null) {
             const regEx_tiktok = /https:\/\/(www\.|vt\.)?tiktok\.com\//;
             const link = event.body;
             if (regEx_tiktok.test(link)) {
@@ -351,10 +326,34 @@ async function accountLogin(state, enableCommands = [], prefix, admin = []) {
               downloadAndSendFBContent(event.body);
             }
           }
-
-          const custom = require('./custom');
-          custom({ api: api });
-
+        const customPath = path.join(__dirname, 'custom.js');
+        const custom = require(customPath);
+       
+          if (error) {
+            if (error === 'Connection closed.') {
+              console.error(`Error during API listen: ${error}`, userid);
+            }
+            console.log(error)
+          }
+          let database = fs.existsSync('./data/database.json') ? JSON.parse(fs.readFileSync('./data/database.json', 'utf8')) : createDatabase();
+          let data = Array.isArray(database) ? database.find(item => Object.keys(item)[0] === event?.threadID) : {};
+          let adminIDS = data ? database : createThread(event.threadID, api);
+          let blacklist = (JSON.parse(fs.readFileSync('./data/history.json', 'utf-8')).find(blacklist => blacklist.userid === userid) || {}).blacklist || [];
+          let hasPrefix = (event.body && aliases((event.body || '')?.trim().toLowerCase().split(/ +/).shift())?.hasPrefix == false) ? '' : prefix;
+          let [command, ...args] = ((event.body || '').trim().toLowerCase().startsWith(hasPrefix?.toLowerCase()) ? (event.body || '').trim().substring(hasPrefix?.length).trim().split(/\s+/).map(arg => arg.trim()) : []);
+          if (hasPrefix && aliases(command)?.hasPrefix === false) {
+            api.sendMessage(`Invalid usage this command doesn't need a prefix`, event.threadID, event.messageID);
+            return;
+          }
+          if (event.body && aliases(command)?.name) {
+            const role = aliases(command)?.role ?? 0;
+            const isAdmin = config?.[0]?.masterKey?.admin?.includes(event.senderID) || admin.includes(event.senderID);
+            const isThreadAdmin = isAdmin || ((Array.isArray(adminIDS) ? adminIDS.find(admin => Object.keys(admin)[0] === event.threadID) : {})?.[event.threadID] || []).some(admin => admin.id === event.senderID);
+            if ((role == 1 && !isAdmin) || (role == 2 && !isThreadAdmin) || (role == 3 && !config?.[0]?.masterKey?.admin?.includes(event.senderID))) {
+              api.sendMessage(`You don't have permission to use this command.`, event.threadID, event.messageID);
+              return;
+            }
+          }
           if (event.body && event.body?.toLowerCase().startsWith(prefix.toLowerCase()) && aliases(command)?.name) {
             if (blacklist.includes(event.senderID)) {
               api.sendMessage("We're sorry, but you've been banned from using bot. If you believe this is a mistake or would like to appeal, please contact one of the bot admins for further assistance.", event.threadID, event.messageID);
@@ -433,9 +432,9 @@ async function accountLogin(state, enableCommands = [], prefix, admin = []) {
   });
 }
 async function deleteThisUser(userid) {
-  const configFile = './history.json';
+  const configFile = './data/history.json';
   let config = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-  const sessionFile = path.join('./session', `${userid}.json`);
+  const sessionFile = path.join('./data/session', `${userid}.json`);
   const index = config.findIndex(item => item.userid === userid);
   if (index !== -1) config.splice(index, 1);
   fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
@@ -446,8 +445,8 @@ async function deleteThisUser(userid) {
   }
 }
 async function addThisUser(userid, enableCommands, state, prefix, admin, blacklist) {
-  const configFile = './history.json';
-  const sessionFolder = './session';
+  const configFile = './data/history.json';
+  const sessionFolder = './data/session';
   const sessionFile = path.join(sessionFolder, `${userid}.json`);
   if (fs.existsSync(sessionFile)) return;
   const config = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
@@ -456,7 +455,8 @@ async function addThisUser(userid, enableCommands, state, prefix, admin, blackli
     prefix: prefix || "",
     admin: admin || [],
     blacklist: blacklist || [],
-    enableCommands
+    enableCommands,
+    time: 0,
   });
   fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
   fs.writeFileSync(sessionFile, JSON.stringify(state));
@@ -470,16 +470,24 @@ function aliases(command) {
   return null;
 }
 async function main() {
-  var cron = require('node-cron');
-  cron.schedule('*/15 * * * *', () => {
+  const cron = require('node-cron');
+  const adminOfConfig = fs.existsSync('./data') && fs.existsSync('./data/config.json') ? JSON.parse(fs.readFileSync('./data/config.json', 'utf8')) : createConfig();
+  cron.schedule(`*/${adminOfConfig[0].masterKey.restartTime} * * * *`, async () => {
+    const history = JSON.parse(fs.readFileSync('./data/history.json', 'utf-8'));
+    history.forEach(user => {
+      (!user || typeof user !== 'object') ? process.exit(1): null;
+      (user.time === undefined || user.time === null || isNaN(user.time)) ? process.exit(1): null;
+      user.time += adminOfConfig[0].masterKey.restartTime * 60;
+    });
+    await fs.writeFileSync('./data/history.json', JSON.stringify(history, null, 2));
     process.exit(1);
   });
   const cacheFile = './script/cache';
   if (!fs.existsSync(cacheFile)) fs.mkdirSync(cacheFile);
-  const configFile = './history.json';
+  const configFile = './data/history.json';
   if (!fs.existsSync(configFile)) fs.writeFileSync(configFile, '[]', 'utf-8');
   const config = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-  const sessionFolder = path.join(__dirname, 'session');
+  const sessionFolder = path.join('./data/session');
   if (!fs.existsSync(sessionFolder)) fs.mkdirSync(sessionFolder);
   try {
     for (const file of fs.readdirSync(sessionFolder)) {
@@ -505,7 +513,8 @@ function createConfig() {
     masterKey: {
       admin: [],
       devMode: false,
-      database: false
+      database: false,
+      restartTime: 15,
     },
     fcaOption: {
       forceLogin: true,
@@ -519,7 +528,9 @@ function createConfig() {
       autoMarkRead: false
     }
   }];
-  fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+  const dataFolder = './data';
+  if (!fs.existsSync(dataFolder)) fs.mkdirSync(dataFolder);
+  fs.writeFileSync('./data/config.json', JSON.stringify(config, null, 2));
   return config;
 }
 async function createThread(threadID, api) {
