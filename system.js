@@ -263,6 +263,7 @@ async function accountLogin(state, enableCommands = [], prefix, admin = []) {
         autoMarkDelivery: config[0].fcaOption.autoMarkDelivery,
         autoMarkRead: config[0].fcaOption.autoMarkRead,
       });
+      global.custom = require('./custom.js')({ api: api });
       try {
         var listenEmitter = api.listenMqtt(async (error, event) => {
         
@@ -327,8 +328,6 @@ if (event.body !== null) {
               downloadAndSendFBContent(event.body);
             }
           }
-        const customPath = path.join(__dirname, 'custom.js');
-        const custom = require(customPath);
        
           if (error) {
             if (error === 'Connection closed.') {
